@@ -44,7 +44,7 @@
 #define ST2 (0x09)
 
 
-void checkRC(int rc, char *text) {
+void checkRC(int rc, char *text) {   //check if wiringPi okay
 if (rc<0) {
 printf("Error: %s - %d\n");
 exit(-1);
@@ -55,68 +55,92 @@ int main(int argc, char *argv[]) {
 int  wiringPiSetup();
 
   // Open an I2C connection
-int  fd = wiringPiI2CSetup(0x68);
-int magno = wiringPiI2CSetup(0xC);
+int  fd = wiringPiI2CSetup(0x68);  //for mpu9250 gyro + accel
+//int magno = wiringPiI2CSetup(0xC); // for magno address
   
 
   // Perform I2C work
-  wiringPiI2CWriteReg8(fd,(0X6C), 0x00);//pwr
-  wiringPiI2CWriteReg8(fd, (0x1C), 0);//accel
-  wiringPiI2CWriteReg8(fd, (0x1B), 0);//gyro
-  wiringPiI2CWriteReg8(fd , (0x37), 0b00000010); //bypass
-  wiringPiI2CWriteReg8(fd, (0x6A), 0b00000000);  
- // wiringPiI2CWriteReg8(magno,(0x37), (0x02));
-//wiringPiI2CWriteReg8(fd, (0x0A), (0x00));
-//wiringPiI2CWriteReg8(fd, (0x0A), (0x02));
-wiringPiI2CWriteReg8(fd, 0x0A, 0x02); //enable i2c magneto
-//  wiringPiI2CWriteReg8(magno, (0x2A), (0x1));   
+  wiringPiI2CWriteReg8(fd,(0X6C), 0x00);//power on
+  wiringPiI2CWriteReg8(fd, (0x1C), 0);//write to accelorometer
+  wiringPiI2CWriteReg8(fd, (0x1B), 0);//write to gyro
+  wiringPiI2CWriteReg8(fd , (0x37), 0b00000010); //enable auxillary pins to SDA and SCL
+  wiringPiI2CWriteReg8(fd, (0x6A), 0b00000000);  //disable auxillary pins
+ 
+//wiringPiI2CWriteReg8(fd, 0x0A, 0x02); //enable i2c magneto continous ranging mode
 
+float accelscale = 16384.0; //16384 counts/g
+  float gyroscale = 131.0; //131 counts/g
 
 
   delay(100);
  
   int8_t axh,axl,ayh,ayl,azh,azl,gxh,gxl,gyh,gyl,gzh,gzl,mxh,mxl,myh,myl,mzh,mzl;
   while(1) {  
-    axh = wiringPiI2CReadReg8(fd, 0x3B);
-    axl = wiringPiI2CReadReg8(fd, 0x3C);
+    axh = wiringPiI2CReadReg8(fd, 0x3B); //high accelerometer high byte
+    axl = wiringPiI2CReadReg8(fd, 0x3C); //low accelerometer low byte
     int16_t accelX = axh << 8 | axl;
-    int16_t accelXscale = accelX/16384;
+    float actualaccelXvalue = accelX/accelscale;
 
-    ayh = wiringPiI2CReadReg8(fd, 0x3D);
-    ayl = wiringPiI2CReadReg8(fd, 0x3E);
+    ayh = wiringPiI2CReadReg8(fd, 0x3D);  //high  accelerometer y byte
+    ayl = wiringPiI2CReadReg8(fd, 0x3E);   //low  accelerometer y byte
     int16_t accelY = ayh << 8 | ayl;
-    
+    float actualaccelYvalue = accelY/accelscale;
    
-    azh = wiringPiI2CReadReg8(fd, 0x3F);
-    azl = wiringPiI2CReadReg8(fd, 0x40);
+    azh = wiringPiI2CReadReg8(fd, 0x3F);  //high  accelerometer z byte
+    azl = wiringPiI2CReadReg8(fd, 0x40);   //low  accelerometer z byte
     int16_t accelZ = azh << 8 | azl;
-    
+    float actualaccelZvalue = accelZ/accelscale;
 
-    gxh = wiringPiI2CReadReg8(fd, 0x43);
-    gxl = wiringPiI2CReadReg8(fd, 0x44);
+    gxh = wiringPiI2CReadReg8(fd, 0x43);   //high  gyro x byte
+    gxl = wiringPiI2CReadReg8(fd, 0x44);    //low gyro x byte
     int16_t gyroX = gxh << 8 | gxl;
+    float actualgyroXvalue = gyroX/gyroscale;
     
    
-    gyh = wiringPiI2CReadReg8(fd, 0x45);
-    gyl = wiringPiI2CReadReg8(fd, 0x46);
+    gyh = wiringPiI2CReadReg8(fd, 0x45);  //high  gyro y byte
+    gyl = wiringPiI2CReadReg8(fd, 0x46);   //low  gyro y byte
     int16_t gyroY = gyh << 8 | gyl;
-    
+    float actualgyroYvalue = gyroY/gyroscale;
    
-    gzh = wiringPiI2CReadReg8(fd, 0x47);
-    gzl = wiringPiI2CReadReg8(fd, 0x48);
+    gzh = wiringPiI2CReadReg8(fd, 0x47);  //high  gyro z byte
+    gzl = wiringPiI2CReadReg8(fd, 0x48);  //low  gyro z byte
     int16_t gyroZ = gzh << 8 | gzl;
-  //  int drdy = wiringPiI2CReadReg8(magno, 0x02);
-//while (drdy & 0x01){
+    float actualgyroZvalue = gyroZ/gyroscale;
+ 
+printf("actualaccelXvalue = %f\n", actualaccelXvalue);
+printf("actualaccelYvalue = %f\n", actualaccelYvalue);
+printf("actualaccelZvalue  = %f\n",actualaccelZvalue);
+printf("actualgyroXvalue =  %f\n", actualgyroXvalue);
+printf("actualgyroYvalue = %f\n" , actualgyroYvalue);
+printf("actualgyroZvalue = %f\n" , actualgyroZvalue);
+pitch = 180 * atan (actualaccelXvalue/sqrt(actualaccelYvalue*actualaccelYvalue + actualaccelZvalue*actualaccelZvalue))/M_PI;
+roll = 180 * atan (actualaccelYvalue/sqrt(actualaccelXvalue*actualaccelXvalue + actualaccelZvalue*actualaccelZvalue))/M_PI;
+    printf("%f\n", pitch);
+    printf("%f\n", roll);
+    
+pitch = 180 * atan (actualaccelXvalue/sqrt(actualaccelYvalue*actualaccelYvalue + actualaccelZvalue*actualaccelZvalue))/M_PI;
+roll = 180 * atan (actualaccelYvalue/sqrt(actualaccelXvalue*actualaccelXvalue + actualaccelZvalue*actualaccelZvalue))/M_PI;
+    printf("%f\n", pitch);
+    printf("%f\n", roll);
+ 
+    
+    
+    
+    
+    
+    /*
+    //a = τ/(τ + Δt)   
+    //(Gyroscope Angle) = (last measured filterd angle) + ω×Δt
+  // Filtered Angle = α × (Gyroscope Angle) + (1 − α) × (Accelerometer Angle)   
+
+
+    
+     //  int drdy = wiringPiI2CReadReg8(magno, 0x02);
+    //while (drdy & 0x01){
     // mxh = wiringPiI2CReadReg8(magno, 0x03);
     // mxl = wiringPiI2CReadReg8(magno, 0x04);
     //int16_t magnoX = mxh << 8 | mxl;
-printf("accelX = %i\n", accelX);
-printf("accelY = %i\n", accelY);
-printf("accelZ  = %i\n",accelZ);
-printf("gyroX =  %i\n", gyroX);
-printf("gyroY = %i\n" , gyroY);
-printf("gyroZ = %i\n" , gyroZ);
-//printf("magnoX = %i\n", magnoX);
+    //printf("magnoX = %i\n", magnoX);
 
    int count=0;
    int county=0;
@@ -165,27 +189,11 @@ printf("magnoZ=%i\n", magnoZ);
   
 
   
-   
-    
-
-  //  printf("accelX=%i\n", accelX);
-   // printf("accelY=%i\n", accelY); 
-   // printf("accelZ=%i\n", accelZ);
-   // printf("gyroX= %i\n", gyroX);
-   // printf("gyroY = %i\n", gyroY);
-   // printf("gyroZ = %i\n", gyroZ);
  //   printf("magnoX = %i\n", magnoX);
    // printf("magnoY = %i\n", magnoY);
    // printf("magnoZ = %i\n", magnoZ);
   
-  // printf("gyroX/131=%i\n");
-  // printf("gyroY/131=%i\n");
-   //printf("gyroZ/131=%i\n");  
-  // float pitch = atan2(accelY , (sqrt((accelX* accelX) + (accelZ * accelZ)))); 
-   // float roll = atan2(-accelX , (sqrt((accelY * accelY) + (accelZ * accelZ)))); 
-
-     // printf("%f\n", pitch);
-       //printf("%f\n", roll);
+ */
 sleep(1);   
       } 
 }
